@@ -16,7 +16,10 @@ use inflections::Inflect;
 use svd::{Access, Defaults, Peripheral, Register};
 
 pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
-    assert!(p.derived_from.is_none(), "DerivedFrom not supported");
+    if !p.derived_from.is_none() {
+        println!("DerivedFrom not supported");
+        return Vec::new();
+    }
 
     let mut items = vec![];
     let mut fields = vec![];
