@@ -52,21 +52,42 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
         }
 
         let comment = &format!("0x{:02x} - {}",
-                     register.address_offset,
-                     respace(&register.description))[..];
+                               register.address_offset,
+                               respace(&register.description))[..];
 
         let field_ty = Ident::new(register.name.to_pascal_case());
         let field_name = Ident::new(register.name.to_snake_case());
+        let field_access = register.access.unwrap_or_else(|| {
+            let fields = register.fields
+                .as_ref()
+                .expect(&format!("{:#?} has no `fields` field", register));
+            if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
+                Access::ReadOnly
+            } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
+                Access::WriteOnly
+            } else if fields.iter().any(|f| f.access == Some(Access::ReadWrite)) {
+                Access::ReadWrite
+            } else {
+                panic!("unexpected case: {:#?}",
+                       fields.iter().map(|f| f.access).collect::<Vec<_>>())
+            }
+        });
+        let field_access_ty = match field_access {
+            Access::ReadOnly => Ident::new("::volatile_register::RO"),
+            Access::WriteOnly => Ident::new("::volatile_register::WO"),
+            Access::ReadWrite => Ident::new("::volatile_register::RW"),
+            a => panic!("{:?} registers are not supported", a),
+        };
+
         fields.push(quote! {
             #[doc = #comment]
-            pub #field_name : #field_ty
+            pub #field_name : #field_access_ty<#field_ty>
         });
 
         offset = register.address_offset +
                  register.size
             .or(d.size)
-            .expect(&format!("{:#?} has no `size` field", register)) /
-                 8;
+            .expect(&format!("{:#?} has no `size` field", register)) / 8;
     }
 
     let p_name = Ident::new(p.name.to_pascal_case());
@@ -89,8 +110,8 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
 
     for register in registers {
         items.extend(gen_register(register, d));
-        items.extend(gen_register_r(register, d));
-        items.extend(gen_register_w(register, d));
+        items.extend(gen_register_read_methods(register, d));
+        items.extend(gen_register_write_methods(register, d));
     }
 
     items
@@ -104,119 +125,25 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
         .to_ty();
-    let access = r.access.unwrap_or_else(|| {
-        let fields = r.fields
-            .as_ref()
-            .expect(&format!("{:#?} has no `fields` field", r));
-        if fields.iter().all(|f| f.access == Some(Access::ReadOnly)) {
-            Access::ReadOnly
-        } else if fields.iter().all(|f| f.access == Some(Access::WriteOnly)) {
-            Access::WriteOnly
-        } else if fields.iter().any(|f| f.access == Some(Access::ReadWrite)) {
-            Access::ReadWrite
-        } else {
-            panic!("unexpected case: {:#?}",
-                   fields.iter().map(|f| f.access).collect::<Vec<_>>())
+
+    items.push(quote! {
+        #[repr(C)]
+        pub struct #name {
+            bits: #bits_ty
         }
     });
-
-    let name_r = Ident::new(format!("{}R", r.name.to_pascal_case()));
-    let name_w = Ident::new(format!("{}W", r.name.to_pascal_case()));
-    match access {
-        Access::ReadOnly => {
-            items.push(quote! {
-                #[repr(C)]
-                pub struct #name {
-                    register: ::volatile_register::RO<#bits_ty>
-                }
-            });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn read(&self) -> #name_r {
-                        #name_r { bits: self.register.read() }
-                    }
-                }
-            });
-        }
-
-        Access::ReadWrite => {
-            items.push(quote! {
-                #[repr(C)]
-                pub struct #name {
-                    register: ::volatile_register::RW<#bits_ty>
-                }
-            });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn modify<F>(&mut self, f: F)
-                        where for<'w> F: FnOnce(&#name_r, &'w mut #name_w) -> &'w mut #name_w,
-                    {
-                        let bits = self.register.read();
-                        let r = #name_r { bits: bits };
-                        let mut w = #name_w { bits: bits };
-                        f(&r, &mut w);
-                        self.register.write(w.bits);
-                    }
-
-                    pub fn read(&self) -> #name_r {
-                        #name_r { bits: self.register.read() }
-                    }
-
-                    pub fn write<F>(&mut self, f: F)
-                        where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                    {
-                        let mut w = #name_w::reset_value();
-                        f(&mut w);
-                        self.register.write(w.bits);
-                    }
-                }
-            });
-        }
-
-        Access::WriteOnly => {
-            items.push(quote! {
-                #[repr(C)]
-                pub struct #name {
-                    register: ::volatile_register::WO<#bits_ty>
-                }
-            });
-
-            items.push(quote! {
-                impl #name {
-                    pub fn write<F>(&self, f: F)
-                        where F: FnOnce(&mut #name_w) -> &mut #name_w,
-                    {
-                        let mut w = #name_w::reset_value();
-                        f(&mut w);
-                        self.register.write(w.bits);
-                    }
-                }
-            });
-        }
-
-        _ => unreachable!(),
-    }
 
     items
 }
 
-pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}R", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}", r.name.to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
         .to_ty();
-
-    items.push(quote! {
-        #[derive(Clone, Copy)]
-        #[repr(C)]
-        pub struct #name {
-            bits: #bits_ty,
-        }});
 
     let mut impl_items = vec![];
 
@@ -284,21 +211,14 @@ pub fn gen_register_r(r: &Register, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
-pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}W", r.name.to_pascal_case()));
+    let name = Ident::new(format!("{}", r.name.to_pascal_case()));
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
         .to_ty();
-    items.push(quote! {
-        #[derive(Clone, Copy)]
-        #[repr(C)]
-        pub struct #name {
-            bits: #bits_ty,
-        }
-    });
 
     let mut impl_items = vec![];
 
@@ -319,7 +239,7 @@ pub fn gen_register_w(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 continue;
             }
 
-            let name = Ident::new(field.name.to_snake_case());
+            let name = Ident::new(format!("set_{}", field.name.to_snake_case()));
             let offset = field.bit_range.offset as u8;
 
             let width = field.bit_range.width;
