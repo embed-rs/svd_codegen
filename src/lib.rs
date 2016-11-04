@@ -135,6 +135,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
         .to_ty();
 
     items.push(quote! {
+        #[derive(Debug, Clone, Copy)]
         #[repr(C)]
         pub struct #name {
             bits: #bits_ty
