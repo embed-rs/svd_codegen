@@ -1,6 +1,6 @@
 environment:
   global:
-    CRATE_NAME: svd2rust
+    CRATE_NAME: svd_codegen
     RUST_VERSION: nightly
   matrix:
     - TARGET: i686-pc-windows-gnu
@@ -17,7 +17,7 @@ test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
       cargo build --target %TARGET%
     ) else (
-      cargo rustc --target %TARGET% --release --bin svd2rust -- -C lto
+      cargo rustc --target %TARGET% --release --bin svd_codegen -- -C lto
     )
 
 before_deploy:

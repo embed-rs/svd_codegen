@@ -4,7 +4,7 @@ run() {
     local src_dir=$(pwd)\
           stage=$(mk_temp_dir)
 
-    cp target/$TARGET/release/svd2rust $stage/
+    cp target/$TARGET/release/svd_codegen $stage/
 
     cd $stage
     tar czf $src_dir/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *

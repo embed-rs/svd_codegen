@@ -31,7 +31,7 @@ test_mode() {
 }
 
 deploy_mode() {
-    cargo rustc $flags --release --bin svd2rust -- -C lto
+    cargo rustc $flags --release --bin svd_codegen -- -C lto
 }
 
 run() {

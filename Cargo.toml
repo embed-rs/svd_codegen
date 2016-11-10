@@ -1,12 +1,12 @@
 [package]
-authors = ["Jorge Aparicio <japaricious@gmail.com>"]
+authors = ["Jorge Aparicio <japaricious@gmail.com>", "Philipp Oppermann <dev@phil-opp.com>"]
 build = "build.rs"
 description = "Generate Rust register maps (`struct`s) from SVD files"
-documentation = "https://github.com/japaric/svd2rust#svd2rust"
+documentation = "https://docs.rs/svd_codegen"
 keywords = ["arm", "cortex-m", "register", "map", "generator"]
 license = "MIT OR Apache-2.0"
-name = "svd2rust"
-repository = "https://github.com/japaric/svd2rust"
+name = "svd_codegen"
+repository = "https://github.com/embed-rs/svd_codegen"
 version = "0.1.0"
 
 [dependencies]

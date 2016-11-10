@@ -1,5 +1,5 @@
 extern crate clap;
-extern crate svd2rust;
+extern crate svd_codegen;
 extern crate svd_parser as svd;
 
 use std::ascii::AsciiExt;
@@ -9,7 +9,7 @@ use std::io::Read;
 use clap::{App, Arg};
 
 fn main() {
-    let matches = App::new("svd2rust")
+    let matches = App::new("svd_codegen")
         .about("Generate Rust register maps (`struct`s) from SVD files")
         .arg(Arg::with_name("input")
             .help("Input SVD file")
@@ -21,8 +21,7 @@ fn main() {
             .help("Pattern used to select a single peripheral")
             .value_name("PATTERN"))
         .version(concat!(env!("CARGO_PKG_VERSION"),
-                         include_str!(concat!(env!("OUT_DIR"),
-                                              "/commit-info.txt"))))
+                         include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))))
         .get_matches();
 
     let xml = &mut String::new();
@@ -44,7 +43,7 @@ fn main() {
             for peripheral in &d.peripherals {
                 if peripheral.name.to_ascii_lowercase().contains(&pattern) {
                     println!("{}",
-                             svd2rust::gen_peripheral(peripheral, &d.defaults)
+                             svd_codegen::gen_peripheral(peripheral, &d.defaults)
                                  .iter()
                                  .map(|i| i.to_string())
                                  .collect::<Vec<_>>()

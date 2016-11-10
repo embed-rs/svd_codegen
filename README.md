@@ -1,7 +1,7 @@
-[![crates.io](https://img.shields.io/crates/d/svd2rust.svg)](https://crates.io/crates/svd2rust)
-[![crates.io](https://img.shields.io/crates/v/svd2rust.svg)](https://crates.io/crates/svd2rust)
+[![crates.io](https://img.shields.io/crates/d/svd_codegen.svg)](https://crates.io/crates/svd_codegen)
+[![crates.io](https://img.shields.io/crates/v/svd_codegen.svg)](https://crates.io/crates/svd_codegen)
 
-# `svd2rust`
+# `svd_codegen`
 
 > Generate Rust register maps (`struct`s) from SVD files
 
@@ -12,7 +12,7 @@ This is a fork of [japaric/svd2rust](https://github.com/japaric/svd2rust) that g
 - Get the start address of each peripheral register block.
 
 ```
-$ svd2rust -i STM32F30x.svd
+$ svd_codegen -i STM32F30x.svd
 const GPIOA: usize = 0x48000000;
 const GPIOB: usize = 0x48000400;
 const GPIOC: usize = 0x48000800;
@@ -25,7 +25,7 @@ const GPIOF: usize = 0x48001400;
 - Generate a register map for a single peripheral.
 
 ```
-$ svd2rust -i STM32F30x.svd rcc | head
+$ svd_codegen -i STM32F30x.svd rcc | head
 #[repr(C)]
 /// Reset and clock control
 pub struct Rcc {
@@ -44,7 +44,7 @@ pub struct Rcc {
 
 ## API
 
-The `svd2rust` generates the following API for each peripheral:
+The `svd_codegen` generates the following API for each peripheral:
 
 ### Register block
 
