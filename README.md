@@ -5,6 +5,8 @@
 
 > Generate Rust register maps (`struct`s) from SVD files
 
+This is a fork of [japaric/svd2rust](https://github.com/japaric/svd2rust) that generates a slightly different API.
+
 ## Usage
 
 - Get the start address of each peripheral register block.
@@ -27,13 +29,16 @@ $ svd2rust -i STM32F30x.svd rcc | head
 #[repr(C)]
 /// Reset and clock control
 pub struct Rcc {
-    /// Clock control register
-    pub cr: Cr,
-    /// Clock configuration register (RCC_CFGR)
-    pub cfgr: Cfgr,
-    /// Clock interrupt register (RCC_CIR)
-    pub cir: Cir,
-    /// APB2 peripheral reset register (RCC_APB2RSTR)
+    /// 0x00 - clock control register
+    pub cr: ::volatile::ReadWrite<Cr>,
+    /// 0x04 - PLL configuration register
+    pub pllcfgr: ::volatile::ReadWrite<Pllcfgr>,
+    /// 0x08 - clock configuration register
+    pub cfgr: ::volatile::ReadWrite<Cfgr>,
+    /// 0x0c - clock interrupt register
+    pub cir: ::volatile::ReadWrite<Cir>,
+    /// 0x10 - AHB1 peripheral reset register
+    pub ahb1rstr: ::volatile::ReadWrite<Ahb1rstr>,
 (..)
 ```
 
@@ -50,27 +55,27 @@ A register block "definition" as a `struct`. Example below:
 #[repr(C)]
 pub struct I2c1 {
     /// 0x00 - Control register 1
-    pub cr1: Cr1,
+    pub cr1: ::volatile::ReadWrite<Cr1>,
     /// 0x04 - Control register 2
-    pub cr2: Cr2,
+    pub cr2: ::volatile::ReadWrite<Cr2>,
     /// 0x08 - Own address register 1
-    pub oar1: Oar1,
+    pub oar1: ::volatile::ReadWrite<Oar1>,
     /// 0x0c - Own address register 2
-    pub oar2: Oar2,
+    pub oar2: ::volatile::ReadWrite<Oar2>,
     /// 0x10 - Timing register
-    pub timingr: Timingr,
+    pub timingr: ::volatile::ReadWrite<Timingr>,
     /// 0x14 - Status register 1
-    pub timeoutr: Timeoutr,
+    pub timeoutr: ::volatile::ReadWrite<Timeoutr>,
     /// 0x18 - Interrupt and Status register
-    pub isr: Isr,
+    pub isr: ::volatile::ReadWrite<Isr>,
     /// 0x1c - Interrupt clear register
-    pub icr: Icr,
+    pub icr: ::volatile::WriteOnly<Icr>,
     /// 0x20 - PEC register
-    pub pecr: Pecr,
+    pub pecr: ::volatile::ReadOnly<Pecr>,
     /// 0x24 - Receive data register
-    pub rxdr: Rxdr,
+    pub rxdr: ::volatile::ReadOnly<Rxdr>,
     /// 0x28 - Transmit data register
-    pub txdr: Txdr,
+    pub txdr: ::volatile::ReadWrite<Txdr>,
 }
 ```
 
@@ -116,107 +121,24 @@ pub fn i2c2() -> &'static I2C {
 }
 ```
 
-### `read` / `modify` / `write`
+### `read` / `write` / `update`
 
-Each register in the register block, e.g. the `cr1` field in the `I2c` struct, exposes a combination
-of the `read`, `modify` and `write` methods. Which methods exposes each register depends on whether
-the register is read-only, read-write or write-only:
+Each register in the register block, e.g. the `cr1` field in the `I2c` struct, is wrapped in a volatile wrapper that exposes some methods:
 
 - read-only registers only expose the `read` method.
 - write-only registers only expose the `write` method.
-- read-write registers exposes all the methods: `read`, `modify` and `write`.
+- read-write registers exposes all the methods: `read`, `write`, and `update`.
 
-This is signature of each of these methods:
+The `read` method performs a single, volatile `LDR` instruction and the `write` method performs a single, volatile `STR` instruction. The update method takes a closure that modifies the register. It performs a `read`, passes the value to the closure and writes the modified value back:
 
-(using the `CR2` register as an example)
-
-``` rust
-impl Cr2 {
-    pub fn modify<F>(&mut self, f: F)
-        where for<'w> F: FnOnce(&Cr2R, &'w mut Cr2W) -> &'w mut Cr2W
-    {
-        ..
-    }
-
-    pub fn read(&self) -> Cr2R { .. }
-
-    pub fn write<F>(&mut self, f: F)
-        where F: FnOnce(&mut Cr2W) -> &mut Cr2W,
-    {
-        ..
-    }
+```
+pub fn update<F>(&mut self, f: F)
+    where F: FnOnce(&mut T)
+{
+    let mut value = self.read();
+    f(&mut value);
+    self.write(value);
 }
-```
-
-The `read` method performs a single, volatile `LDR` instruction and returns a proxy `Cr2R` struct
-which allows access to only the readable bits (i.e. not to the reserved bits) of the `CR2` register:
-
-``` rust
-impl Cr2R {
-    /// Bit 0 - Slave address bit 0 (master mode)
-    pub fn sadd0(&self) -> bool { .. }
-
-    /// Bits 1:7 - Slave address bit 7:1 (master mode)
-    pub fn sadd1(&self) -> u8 { .. }
-
-    (..)
-}
-```
-
-Usage looks like this:
-
-``` rust
-// is the SADD0 bit of the CR2 register set?
-if i2c1.c2r.read().sadd0() {
-    // something
-} else {
-    // something else
-}
-```
-
-The `write` method performs a single, volatile `STR` instruction to write a value to the `CR2`
-register. This method involves the `Cr2W` struct which only allows constructing valid states of the
-`CR2` register.
-
-The only constructor that `Cr2W` provides is `reset_value` which returns the value of the `CR2`
-register after a reset. The rest of `Cr2W` methods are "builder" like and can be used to set or
-reset the writable bits of the `CR2` register.
-
-``` rust
-impl Cr2W {
-    /// Reset value
-    pub fn reset_value() -> Self {
-        Cr2W { bits: 0 }
-    }
-
-    /// Bits 1:7 - Slave address bit 7:1 (master mode)
-    pub fn sadd1(&mut self, value: u8) -> &mut Self { .. }
-
-    /// Bit 0 - Slave address bit 0 (master mode)
-    pub fn sadd0(&mut self, value: bool) -> &mut Self { .. }
-}
-```
-
-The `write` method takes a closure with signature `&mut Cr2W -> &mut Cr2W`. If passed the identity
-closure, `|w| w`, the `write` method will set the `CR2` register to its reset value. Otherwise, the
-closure specifies how that reset value will be modified before it's written to `CR2`.
-
-Usage looks like this:
-
-``` rust
-// Write to CR2, its reset value but with its SADD0 and SADD1 fields set to `true` and `0b0011110`
-i2c1.cr2.write(|w| w.sadd0(true).sadd1(0b0011110));
-```
-
-Finally, the `modify` method performs a read-modify-write operation that involves at least one `LDR`
-instruction, one `STR` instruction plus extra instructions to modify the fetched value of the `CR2`
-register. This method accepts a closure that specifies how the `CR2` register will be modified.
-
-Usage looks like this:
-
-``` rust
-// Toggle the STOP bit of the CR2 register and set the START bit
-i2c1.cr2.modify(|r, w| w.stop(!r.stop()).start(true));
 ```
 
 ## License
