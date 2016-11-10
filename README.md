@@ -1,5 +1,5 @@
-[![crates.io](https://img.shields.io/crates/d/svd_codegen.svg)](https://crates.io/crates/svd_codegen)
 [![crates.io](https://img.shields.io/crates/v/svd_codegen.svg)](https://crates.io/crates/svd_codegen)
+[![docs.rs](https://img.shields.io/badge/docs.rs-documentation-green.svg)](https://docs.rs/svd_codegen)
 
 # `svd_codegen`
 
