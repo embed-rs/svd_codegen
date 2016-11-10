@@ -148,7 +148,7 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
 pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
-    let name = Ident::new(format!("{}", r.name.to_pascal_case()));
+    let name = Ident::new(r.name.to_pascal_case());
     let bits_ty = r.size
         .or(d.size)
         .expect(&format!("{:#?} has no `size` field", r))
@@ -164,7 +164,11 @@ pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 continue;
             }
 
-            let name = Ident::new(field.name.to_snake_case());
+            let mut field_name = field.name.to_snake_case();
+            if field_name.as_str() == "match" {
+                field_name += "_";
+            }
+            let field_name = Ident::new(field_name);
             let offset = field.bit_range.offset as u8;
 
             let width = field.bit_range.width;
@@ -186,7 +190,7 @@ pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
             let item = if width == 1 {
                 quote! {
-                pub fn #name(&self) -> bool {
+                pub fn #field_name(&self) -> bool {
                     const OFFSET: u8 = #offset;
 
                     self.bits & (1 << OFFSET) != 0
@@ -198,7 +202,7 @@ pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 let mask = Lit::Int(mask, IntTy::Unsuffixed);
 
                 quote! {
-                pub fn #name(&self) -> #width_ty {
+                pub fn #field_name(&self) -> #width_ty {
                     const MASK: #bits_ty = #mask;
                     const OFFSET: u8 = #offset;
 
