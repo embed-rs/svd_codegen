@@ -188,23 +188,18 @@ pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
             let item = if width == 1 {
                 quote! {
-                pub fn #field_name(&self) -> bool {
-                    const OFFSET: u8 = #offset;
-
-                    self.bits & (1 << OFFSET) != 0
+                    pub fn #field_name(&self) -> bool {
+                        self.bits.get_bit(#offset)
+                    }
                 }
-            }
             } else {
-                let width_ty = width.to_ty();
-                let mask: u64 = (1 << width) - 1;
-                let mask = Lit::Int(mask, IntTy::Unsuffixed);
+                let start = offset;
+                let end = offset + width;
+                let width_ty = field.bit_range.width.to_ty();
 
                 quote! {
                 pub fn #field_name(&self) -> #width_ty {
-                    const MASK: #bits_ty = #mask;
-                    const OFFSET: u8 = #offset;
-
-                    ((self.bits >> OFFSET) & MASK) as #width_ty
+                    self.bits.get_range(#start..#end) as #width_ty
                 }
             }
             };
@@ -271,28 +266,18 @@ pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
             let item = if width == 1 {
                 quote! {
                 pub fn #name(&mut self, value: bool) -> &mut Self {
-                    const OFFSET: u8 = #offset;
-
-                    if value {
-                        self.bits |= 1 << OFFSET;
-                    } else {
-                        self.bits &= !(1 << OFFSET);
-                    }
+                    self.bits.set_bit(#offset, value);
                     self
                 }
             }
             } else {
-                let width_ty = width.to_ty();
-                let mask = (1 << width) - 1;
-                let mask = Lit::Int(mask, IntTy::Unsuffixed);
+                let start = offset;
+                let end = offset + width;
+                let width_ty = field.bit_range.width.to_ty();
 
                 quote! {
                 pub fn #name(&mut self, value: #width_ty) -> &mut Self {
-                    const OFFSET: u8 = #offset;
-                    const MASK: #width_ty = #mask;
-
-                    self.bits &= !((MASK as #bits_ty) << OFFSET);
-                    self.bits |= ((value & MASK) as #bits_ty) << OFFSET;
+                    self.bits.set_range(#start..#end, value as #bits_ty);
                     self
                 }
             }
