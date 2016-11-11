@@ -81,9 +81,9 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
             }
         });
         let field_access_ty = match field_access {
-            Access::ReadOnly => Ident::new("::volatile::ReadOnly"),
-            Access::WriteOnly => Ident::new("::volatile::WriteOnly"),
-            Access::ReadWrite => Ident::new("::volatile::ReadWrite"),
+            Access::ReadOnly => Ident::new("volatile::ReadOnly"),
+            Access::WriteOnly => Ident::new("volatile::WriteOnly"),
+            Access::ReadWrite => Ident::new("volatile::ReadWrite"),
             a => panic!("{:?} registers are not supported", a),
         };
 
