@@ -261,9 +261,8 @@ pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
 
             let item = if width == 1 {
                 quote! {
-                pub fn #name(&mut self, value: bool) -> &mut Self {
+                pub fn #name(&mut self, value: bool) {
                     self.bits.set_bit(#offset, value);
-                    self
                 }
             }
             } else {
@@ -272,9 +271,8 @@ pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
                 let width_ty = field.bit_range.width.to_ty();
 
                 quote! {
-                pub fn #name(&mut self, value: #width_ty) -> &mut Self {
+                pub fn #name(&mut self, value: #width_ty) {
                     self.bits.set_range(#start..#end, value as #bits_ty);
-                    self
                 }
             }
             };
