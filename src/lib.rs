@@ -145,14 +145,10 @@ pub fn gen_register(r: &Register, d: &Defaults) -> Vec<Tokens> {
     items
 }
 
-pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_register_read_methods(r: &Register, _d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
     let name = Ident::new(r.name.to_pascal_case());
-    let bits_ty = r.size
-        .or(d.size)
-        .expect(&format!("{:#?} has no `size` field", r))
-        .to_ty();
 
     let mut impl_items = vec![];
 
