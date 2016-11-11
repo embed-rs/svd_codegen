@@ -171,15 +171,13 @@ pub fn gen_register_read_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
             let field_name = Ident::new(field_name);
             let offset = field.bit_range.offset as u8;
 
-            let width = field.bit_range.width;
+            let width = field.bit_range.width as u8;
 
             if let Some(description) = field.description.as_ref() {
                 let bits = if width == 1 {
-                    format!("Bit {}", field.bit_range.offset)
+                    format!("Bit {}", offset)
                 } else {
-                    format!("Bits {}:{}",
-                            field.bit_range.offset,
-                            field.bit_range.offset + width - 1)
+                    format!("Bits {}:{}", offset, offset + width - 1)
                 };
 
                 let comment = &format!("{} - {}", bits, respace(description))[..];
@@ -255,15 +253,13 @@ pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
             let name = Ident::new(format!("set_{}", field.name.to_snake_case()));
             let offset = field.bit_range.offset as u8;
 
-            let width = field.bit_range.width;
+            let width = field.bit_range.width as u8;
 
             if let Some(description) = field.description.as_ref() {
                 let bits = if width == 1 {
-                    format!("Bit {}", field.bit_range.offset)
+                    format!("Bit {}", offset)
                 } else {
-                    format!("Bits {}:{}",
-                            field.bit_range.offset,
-                            field.bit_range.offset + width - 1)
+                    format!("Bits {}:{}", offset, offset + width - 1)
                 };
 
                 let comment = &format!("{} - {}", bits, respace(description))[..];
