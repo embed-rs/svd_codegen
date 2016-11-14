@@ -30,7 +30,7 @@ fn main() {
         .read_to_string(xml)
         .unwrap();
 
-    let d = svd::parse(xml);
+    let mut d = svd::parse(xml);
     match matches.value_of("peripheral") {
         None => {
             for peripheral in &d.peripherals {
@@ -40,7 +40,7 @@ fn main() {
             }
         }
         Some(pattern) => {
-            for peripheral in &d.peripherals {
+            for peripheral in &mut d.peripherals {
                 if peripheral.name.to_ascii_lowercase().contains(&pattern) {
                     println!("{}",
                              svd_codegen::gen_peripheral(peripheral, &d.defaults)

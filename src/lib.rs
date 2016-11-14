@@ -15,7 +15,7 @@ use syn::*;
 use inflections::Inflect;
 use svd::{Access, Defaults, Peripheral, Register};
 
-pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
+pub fn gen_peripheral(p: &mut Peripheral, d: &Defaults) -> Vec<Tokens> {
     if let Some(ref derived_from) = p.derived_from {
         let p_name = Ident::new(p.name.to_pascal_case());
         let derived_name = format!("::{}::{}",
@@ -33,6 +33,9 @@ pub fn gen_peripheral(p: &Peripheral, d: &Defaults) -> Vec<Tokens> {
     let mut fields = vec![];
     let mut offset = 0;
     let mut i = 0;
+    if let Some(ref mut registers) = p.registers {
+        registers.sort_by_key(|r| r.address_offset);
+    };
     let registers = p.registers
         .as_ref()
         .expect(&format!("{:#?} has no `registers` field", p));
