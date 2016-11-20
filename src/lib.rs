@@ -122,6 +122,7 @@ pub fn gen_peripheral(p: &mut Peripheral, d: &Defaults) -> Vec<Tokens> {
     for register in registers {
         items.extend(gen_register(register, d));
         items.extend(gen_register_read_methods(register, d));
+        items.extend(gen_register_default_impl(register, d));
         items.extend(gen_register_write_methods(register, d));
     }
 
@@ -216,6 +217,25 @@ pub fn gen_register_read_methods(r: &Register, _d: &Defaults) -> Vec<Tokens> {
     items
 }
 
+pub fn gen_register_default_impl(r: &Register, d: &Defaults) -> Vec<Tokens> {
+    let mut items = vec![];
+
+    let name = Ident::new(format!("{}", r.name.to_pascal_case()));
+
+    if let Some(reset_value) = r.reset_value.or(d.reset_value) {
+        items.push(quote! {
+            impl Default for #name {
+                /// Reset value
+                fn default() -> Self {
+                    #name { bits: #reset_value }
+                }
+            }
+        });
+    }
+
+    items
+}
+
 pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
     let mut items = vec![];
 
@@ -226,15 +246,6 @@ pub fn gen_register_write_methods(r: &Register, d: &Defaults) -> Vec<Tokens> {
         .to_ty();
 
     let mut impl_items = vec![];
-
-    if let Some(reset_value) = r.reset_value.or(d.reset_value) {
-        impl_items.push(quote! {
-            /// Reset value
-            pub fn reset_value() -> Self {
-                #name { bits: #reset_value }
-            }
-        });
-    }
 
     if r.fields.is_some() {
         for field in r.fields
